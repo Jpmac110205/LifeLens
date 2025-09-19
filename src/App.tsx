@@ -14,52 +14,81 @@ export default function App() {
   const [reviewedEthics, setReviewedEthics] = useState(false);
 
   return (
-<div
-  style={{
-    minHeight: "100vh",
-    padding: "2.5rem",
-background: `linear-gradient(to bottom, #3a6fb0 0%, #8cc2f7 50%, #3a6fb0 100%)`,
-  }}
->
-      <Header reviewedEthics={() => setReviewedEthics(true)} />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        p: "2.5rem",
+        background: `linear-gradient(to bottom, #3a6fb0 0%, #8cc2f7 50%, #3a6fb0 100%)`,
+      }}
+    >
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Header reviewedEthics={() => setReviewedEthics(true)} />
 
-      <Typography
-        variant="h6"
-        sx={{ textAlign: "center", color: "white", fontWeight: "bold", mb: 2 }}
-      >
-        AI-Powered Multi-Modal Cancer Detection & Risk Prediction
-      </Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            textAlign: "center",
+            color: "white",
+            fontWeight: "bold",
+            mb: 2,
+          }}
+        >
+          AI-Powered Multi-Modal Cancer Detection & Risk Prediction
+        </Typography>
 
-<ProgressBar
-  runAnalysis={runAnalysis}
-  uploadedImage={uploadedImage}
-  hasChatStarted={hasChatStarted}
-  ethicsReviewed={reviewedEthics}
-/>
-
-      {/* Row with Upload + Report */}
-      <div style={{ display: "flex", gap: "2.5rem" }}>
-        <UploadPanel
+        <ProgressBar
           runAnalysis={runAnalysis}
-          setRunAnalysis={setRunAnalysis}
-          cancerType={cancerType}
-          setCancerType={setCancerType}
           uploadedImage={uploadedImage}
-          setUploadedImage={setUploadedImage}
+          hasChatStarted={hasChatStarted}
+          ethicsReviewed={reviewedEthics}
         />
-        <ReportPanel runAnalysis={runAnalysis} />
-      </div>
 
-      <div style={{ height: "2.5rem" }}></div>
-<ChatPanel setHasChatStarted={setHasChatStarted} runAnalysis={runAnalysis} />
+        {/* Row with Upload + Report */}
+        <Box
+          sx={{
+            display: "flex",
+            gap: "2.5rem",
+            flexWrap: "wrap",
+            alignItems: "stretch",
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: "375px", display: "flex" }}>
+            <UploadPanel
+              runAnalysis={runAnalysis}
+              setRunAnalysis={setRunAnalysis}
+              cancerType={cancerType}
+              setCancerType={setCancerType}
+              uploadedImage={uploadedImage}
+              setUploadedImage={setUploadedImage}
+            />
+          </Box>
 
-      {/* Footer Disclaimer */}
-      <Typography
-        variant="caption"
-        sx={{ display: "block", textAlign: "center", mt: 3, color: "white" }}
-      >
-        For research and demonstration purposes only. Not a substitute for medical advice
-      </Typography>
-    </div>
+          <Box sx={{ flex: 1, minWidth: "375px", display: "flex" }}>
+            <ReportPanel runAnalysis={runAnalysis} />
+          </Box>
+        </Box>
+
+        <Box sx={{ height: "2.5rem" }} />
+
+        <ChatPanel
+          setHasChatStarted={setHasChatStarted}
+          runAnalysis={runAnalysis}
+        />
+
+        {/* Footer Disclaimer */}
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            textAlign: "center",
+            mt: 3,
+            color: "white",
+          }}
+        >
+          For research and demonstration purposes only. Not a substitute for
+          medical advice
+        </Typography>
+      </Box>
+    </Box>
   );
 }
