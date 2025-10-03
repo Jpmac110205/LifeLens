@@ -3,8 +3,9 @@ import numpy as np
 import torch
 from torchvision import transforms
 from torchvision.models import resnet18, ResNet18_Weights
-from PIL import Image
+from explainability import GradCAM, overlay_heatmap
 
+from PIL import Image
 # --- Load model (ResNet18, matching training) ---
 model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
 num_features = model.fc.in_features
@@ -24,20 +25,14 @@ transform = transforms.Compose([
                          [0.229, 0.224, 0.225])
 ])
 
-def predict_cancer(image_bytes):
-    """
-    Takes raw image bytes, preprocesses, and runs inference using trained ResNet18.
-    Returns: (certainty_percent, diagnosis)
-    """
-    # Convert bytes → np.array
+def predict_cancer_with_gradcam(image_bytes):
+    # --- Preprocessing ---
     img_array = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Ensure RGB
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_tensor = transform(img).unsqueeze(0)
 
-    # Apply transforms
-    img_tensor = transform(img).unsqueeze(0)  # shape: [1, 3, 224, 224]
-
-    # Forward pass
+    # --- Prediction ---
     with torch.no_grad():
         outputs = model(img_tensor)
         pred_class = torch.argmax(outputs, dim=1).item()
@@ -46,4 +41,10 @@ def predict_cancer(image_bytes):
     diagnosis = "benign" if pred_class == 0 else "malignant"
     certainty_percent = round(confidence * 100, 2)
 
-    return certainty_percent, diagnosis
+    # --- Grad-CAM ---
+    target_layer = model.layer4[-1]  # last conv layer in ResNet18
+    gradcam = GradCAM(model, target_layer)
+    cam = gradcam.generate(img_tensor, class_idx=pred_class)
+    overlay_img = overlay_heatmap(img, cam)
+
+    return certainty_percent, diagnosis, overlay_img

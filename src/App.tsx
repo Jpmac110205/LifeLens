@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "./components/Header";
 import ProgressBar from "./components/ProgressBar";
 import UploadPanel from "./components/UploadPanel";
@@ -10,8 +10,19 @@ export default function App() {
   const [runAnalysis, setRunAnalysis] = useState(false);
   const [cancerType, setCancerType] = useState("BREAST CANCER");
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [gradcamImage, setGradcamImage] = useState<string | null>(null);
   const [hasChatStarted, setHasChatStarted] = useState(false);
   const [reviewedEthics, setReviewedEthics] = useState(false);
+
+  // Debug logs to confirm state flows
+  useEffect(() => {
+    console.log("App originalImage:", originalImage ? originalImage.substring(0,100) : null);
+  }, [originalImage]);
+
+  useEffect(() => {
+    console.log("App gradcamImage:", gradcamImage ? gradcamImage.substring(0,100) : null);
+  }, [gradcamImage]);
 
   return (
     <Box
@@ -43,7 +54,6 @@ export default function App() {
           ethicsReviewed={reviewedEthics}
         />
 
-        {/* Row with Upload + Report */}
         <Box
           sx={{
             display: "flex",
@@ -60,11 +70,17 @@ export default function App() {
               setCancerType={setCancerType}
               uploadedImage={uploadedImage}
               setUploadedImage={setUploadedImage}
+              setOriginalImage={setOriginalImage}
+              setGradcamImage={setGradcamImage}
             />
           </Box>
 
           <Box sx={{ flex: 1, minWidth: "375px", display: "flex" }}>
-            <ReportPanel runAnalysis={runAnalysis} />
+            <ReportPanel
+              runAnalysis={runAnalysis}
+              originalImage={originalImage ?? undefined}
+              gradcamImage={gradcamImage ?? undefined}
+            />
           </Box>
         </Box>
 
@@ -75,7 +91,6 @@ export default function App() {
           runAnalysis={runAnalysis}
         />
 
-        {/* Footer Disclaimer */}
         <Typography
           variant="caption"
           sx={{
