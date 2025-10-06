@@ -53,34 +53,7 @@ LifeLens/
 
 ---
 
-### Backend (FastAPI)
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate        # macOS / Linux
-# .venv\Scripts\activate         # Windows PowerShell
-
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8080
-Frontend (React + TypeScript)
-cd frontend
-npm install
-npm run dev
-Run with Docker
-docker compose up --build
-API Endpoints
-Method	Endpoint	Description
-POST	/predict	Accepts medical image and cancer type; returns risk and Grad-CAM overlay
-POST	/chat	Sends a message to the AI assistant and returns a generated response
-POST	/report	Generates a PDF report (requires explicit user consent)
-Development Notes
-Use Docker to prevent dependency mismatches.
-Keep large model artifacts out of version control (/models in .gitignore).
-Always include disclaimers in chat and report outputs.
-Implement rate limiting and secure data handling.
-Maintain detailed model metadata (architecture, dataset, date trained).
-Roadmap
-Step	Description
+### Step	Description
 1	Build CNN cancer classifier (baseline)
 2	Add Grad-CAM explainability
 3	Add generative AI text layer for explanations
@@ -91,22 +64,28 @@ Step	Description
 8	Add downloadable PDF reports with consent
 9	Deploy with Docker and Vercel
 10	Integrate “Find a Doctor” feature
-Data and Datasets
+
+---
+
+### Data and Datasets
 Use open, publicly available datasets for development:
 NIH Chest X-ray
 Kaggle Breast Histopathology
 ISIC Melanoma Dataset
 All data should be anonymized and used strictly for research.
-Ethics and Privacy
+
+---
+
+### Ethics and Privacy
 LifeLens does not store or share any uploaded images or user data.
 All predictions are for research use only and should not be interpreted as diagnostic results.
 Any generated report must include the following notice:
 “This report is for research purposes only and should not be used for medical diagnosis or treatment. Please consult a qualified healthcare provider.”
-Deployment
+
+---
+
+### Deployment
 Frontend: Vercel or Netlify
 Backend: Docker + Uvicorn/FastAPI
 Storage: Local temporary memory (no persistent data)
 Security: HTTPS, input validation, and optional authentication tokens
-License
-This project is released under the MIT License for research and educational purposes.
-See the LICENSE file for details.
