@@ -9,7 +9,7 @@ export default function ChatPanel({
   runAnalysis: boolean;
 }) {
   const [messages, setMessages] = useState([
-    { text: "So your results say...", sender: "bot" },
+    { text: "Hi I am LifeLens!", sender: "bot" },
   ]);
   const [input, setInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -18,12 +18,31 @@ export default function ChatPanel({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || !runAnalysis) return;
 
-    setMessages([...messages, { text: input, sender: "user" }]);
+    const userMsg = { text: input, sender: "user" };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setHasChatStarted(true);
+
+    try {
+      const res = await fetch("http://localhost:8080/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      });
+
+      const data = await res.json();
+      const botMsg = { text: data.reply, sender: "bot" };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      setMessages((prev) => [
+        ...prev,
+        { text: "⚠️ Failed to reach AI backend.", sender: "bot" },
+      ]);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -37,7 +56,7 @@ export default function ChatPanel({
     <Box
       sx={{
         width: "100%",
-        height: 350,
+        height: 450,
         backgroundColor: "white",
         borderRadius: "40px",
         display: "flex",
