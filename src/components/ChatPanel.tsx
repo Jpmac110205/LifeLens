@@ -19,31 +19,47 @@ export default function ChatPanel({
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !runAnalysis) return;
+  if (!input.trim() || !runAnalysis) return;
 
-    const userMsg = { text: input, sender: "user" };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setHasChatStarted(true);
+  const userMsg = { text: input, sender: "user" };
+  setMessages((prev) => [...prev, userMsg]);
+  setInput("");
+  setHasChatStarted(true);
 
-    try {
-      const res = await fetch("http://localhost:8080/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
+  try {
+    console.log("Sending message to http://localhost:8080/chat");
+    
+    const res = await fetch("http://localhost:8080/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: input }),
+    });
 
-      const data = await res.json();
-      const botMsg = { text: data.reply, sender: "bot" };
-      setMessages((prev) => [...prev, botMsg]);
-    } catch (err) {
-      console.error("Chat error:", err);
-      setMessages((prev) => [
-        ...prev,
-        { text: "⚠️ Failed to reach AI backend.", sender: "bot" },
-      ]);
+    console.log("Response status:", res.status);
+    
+    if (!res.ok) {
+      console.error("HTTP Error:", res.status, res.statusText);
+      throw new Error(`HTTP ${res.status}`);
     }
-  };
+
+    const data = await res.json();
+    console.log("Bot response:", data);
+    
+    const botMsg = { text: data.reply, sender: "bot" };
+    setMessages((prev) => [...prev, botMsg]);
+  } catch (err) {
+    console.error("Full error:", err);
+    setMessages((prev) => [
+      ...prev,
+      {
+        text: `⚠️ Failed to reach AI backend: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        sender: "bot",
+      },
+    ]);
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {

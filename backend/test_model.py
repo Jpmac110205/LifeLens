@@ -10,7 +10,7 @@ from sklearn.metrics import confusion_matrix
 BATCH_SIZE = 8
 IMG_SIZE = 224
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BEST_MODEL_PATH = "checkpoints/best_model.pth"  # trained model path
+BEST_MODEL_PATH = "breast_cancer.pth"  # trained model path
 
 # --- Transforms ---
 test_transform = transforms.Compose([

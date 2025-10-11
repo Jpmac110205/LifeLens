@@ -23,11 +23,11 @@ export default function UploadPanel({
   setGradcamImage,
 }: UploadPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [prediction, setPrediction] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [riskLevel, setRiskLevel] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Convert file to base64 data URL (includes data:image/... prefix)
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -44,60 +44,83 @@ export default function UploadPanel({
     }
   };
 
-  // Accept whatever backend returns and normalize to a proper data URI
+  const handleCancerTypeChange = async (newType: string) => {
+    setCancerType(newType);
+    
+    // Send cancer type to backend so AI knows what to expect
+    try {
+      await fetch("http://127.0.0.1:8000/set-cancer-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancerType: newType }),
+      });
+      console.log("Cancer type set on backend:", newType);
+    } catch (error) {
+      console.error("Error setting cancer type:", error);
+    }
+  };
+
   const normalizeGradcam = (raw: string | undefined | null) => {
     if (!raw) return null;
     if (raw.startsWith("data:image")) return raw;
-    // assume PNG if no prefix
     return `data:image/png;base64,${raw}`;
   };
 
-  const getRiskLevel = (prediction: string, confidence: number) => {
-    if (prediction === "malignant") {
-      if (confidence >= 70) return "High";
-      if (confidence >= 40) return "Medium";
-      return "Low";
-    } else {
-      if (confidence >= 70) return "Low";
-      if (confidence >= 40) return "Medium";
-      return "High";
+  const getRiskLevelColor = (riskLevel: string) => {
+    switch (riskLevel?.toLowerCase()) {
+      case "high":
+        return "red";
+      case "medium":
+        return "orange";
+      case "low":
+        return "green";
+      default:
+        return "gray";
     }
   };
 
   const handleRunAnalysis = async () => {
     if (!uploadedImage) return;
 
+    setLoading(true);
     const formData = new FormData();
     formData.append("file", uploadedImage);
 
-    // base64 data URL for original (has prefix)
+    // Convert to base64 for display
     const base64Original = await fileToBase64(uploadedImage);
 
     try {
+      // Step 1: Run prediction on backend
       const response = await fetch("http://127.0.0.1:8080/predict", {
         method: "POST",
         body: formData,
       });
 
       const result = await response.json();
-      console.log("Server response:", result);
+      console.log("Prediction response:", result);
 
+      // Update local state with results
       setPrediction(result.diagnosis);
       setConfidence(result.certainty_percent);
+      setRiskLevel(result.riskLevel);
 
-      // normalize gradcam and set into App state
-      const rawGrad = result.gradcam_overlay ?? result.gradcam_image ?? result.gradcam ?? null;
+      // Normalize gradcam
+      const rawGrad = result.gradcam_overlay ?? result.gradcam_image ?? null;
       const normalizedGrad = normalizeGradcam(rawGrad);
-      console.log("Normalized Grad-CAM (start):", normalizedGrad ? normalizedGrad.substring(0,100) : null);
 
-      // send to parent App
+      // Send to parent App component
       setOriginalImage(base64Original);
       setGradcamImage(normalizedGrad);
 
-      // mark analysis done
+      // Mark analysis complete
       setRunAnalysis(true);
+      
+      console.log("Analysis complete! Ready for chat.");
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error("Error running analysis:", error);
+      alert("Error running analysis. Check console for details.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,52 +164,47 @@ export default function UploadPanel({
       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
         <Select
           value={cancerType}
-          onChange={(e) => setCancerType(e.target.value)}
+          onChange={(e) => handleCancerTypeChange(e.target.value)}
           sx={{ borderRadius: "20px" }}
           disabled={runAnalysis}
         >
-          <MenuItem value="BREAST CANCER">BREAST CANCER</MenuItem>
-          <MenuItem value="MELANOMA">MELANOMA</MenuItem>
+          <MenuItem value="breast cancer">BREAST CANCER</MenuItem>
+          <MenuItem value="melanoma">MELANOMA</MenuItem>
         </Select>
 
-        <Button variant="outlined" sx={{ borderRadius: "20px" }} disabled={runAnalysis}>
-          {cancerType === "BREAST CANCER" && "HISTOPATHOLOGY SLIDES"}
-          {cancerType === "MELANOMA" && "PHYSICAL SKIN IMAGE"}
+        <Button variant="outlined" sx={{ borderRadius: "20px" }} disabled>
+          {cancerType === "breast cancer" && "HISTOPATHOLOGY SLIDES"}
+          {cancerType === "melanoma" && "PHYSICAL SKIN IMAGE"}
         </Button>
       </Box>
 
       <Typography
         sx={{ textAlign: "center", color: "gray", fontSize: "0.7rem", mb: 2 }}
       >
-        {cancerType === "BREAST CANCER" && "Please upload histopathology slides."}
-        {cancerType === "MELANOMA" && "Please upload physical skin images."}
+        {cancerType === "breast cancer" && "Please upload histopathology slides."}
+        {cancerType === "melanoma" && "Please upload physical skin images."}
       </Typography>
 
       <Button
         variant="contained"
         sx={{ bgcolor: "#8cc2f7", borderRadius: "20px", mb: 3 }}
         onClick={handleRunAnalysis}
-        disabled={runAnalysis || !uploadedImage}
+        disabled={runAnalysis || !uploadedImage || loading}
       >
-        RUN ANALYSIS
+        {loading ? "ANALYZING..." : "RUN ANALYSIS"}
       </Button>
 
-      {runAnalysis && prediction && confidence !== null && (
+      {runAnalysis && prediction && confidence !== null && riskLevel && (
         <>
           <Typography variant="body1" sx={{ mb: 1 }}>
             Risk Level:{" "}
             <span
               style={{
-                color:
-                  getRiskLevel(prediction, confidence) === "High"
-                    ? "red"
-                    : getRiskLevel(prediction, confidence) === "Medium"
-                    ? "orange"
-                    : "green",
+                color: getRiskLevelColor(riskLevel),
                 fontWeight: "bold",
               }}
             >
-              {getRiskLevel(prediction, confidence)}
+              {riskLevel.toUpperCase()}
             </span>
           </Typography>
 
