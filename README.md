@@ -89,3 +89,10 @@ Frontend: Vercel or Netlify
 Backend: Docker + Uvicorn/FastAPI
 Storage: Local temporary memory (no persistent data)
 Security: HTTPS, input validation, and optional authentication tokens
+
+<img width="2939" height="1683" alt="image" src="https://github.com/user-attachments/assets/d0b81300-f7d5-421e-a8e4-38cde38565e4" />
+<img width="2939" height="1678" alt="image" src="https://github.com/user-attachments/assets/fb30a762-f9be-46d8-a979-d150f280e4a0" />
+<img width="2939" height="1677" alt="image" src="https://github.com/user-attachments/assets/6176fbcf-24d3-46b9-8b1f-cb71aa7a3df4" />
+
+
+
