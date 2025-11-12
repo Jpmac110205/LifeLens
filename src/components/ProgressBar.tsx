@@ -5,19 +5,20 @@ export default function ProgressBar({
   uploadedImage,
   hasChatStarted,
   ethicsReviewed,
+  downloadDemoReport,
 }: {
   runAnalysis: boolean;
   uploadedImage: File | null;
   hasChatStarted: boolean;
   ethicsReviewed: boolean;
+  downloadDemoReport: boolean;
 }) {
   const steps = [
     { text: "Upload Cancer File/Image", done: !!uploadedImage },
     { text: "Run AI Analysis Model", done: runAnalysis },
     { text: "Discuss results with LifeLens", done: hasChatStarted },
     { text: "Review AI Ethics Code", done: ethicsReviewed },
-    { text: "Download Demo Report", done: false },
-    { text: "Find a Doctor Near You", done: false },
+    { text: "Download Demo Report", done: downloadDemoReport },
   ];
 
   return (

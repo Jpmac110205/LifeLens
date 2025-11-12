@@ -2,6 +2,8 @@ import { Box, Button, MenuItem, Select, Typography } from "@mui/material";
 import { useRef, useState } from "react";
 
 type UploadPanelProps = {
+  downloadDemoReport: (val: boolean) => void;
+  reviewedEthics: boolean;
   runAnalysis: boolean;
   setRunAnalysis: (val: boolean) => void;
   cancerType: string;
@@ -13,6 +15,8 @@ type UploadPanelProps = {
 };
 
 export default function UploadPanel({
+  downloadDemoReport,
+  reviewedEthics,
   runAnalysis,
   setRunAnalysis,
   cancerType,
@@ -174,7 +178,7 @@ export default function UploadPanel({
 
         <Button variant="outlined" sx={{ borderRadius: "20px" }} disabled>
           {cancerType === "breast cancer" && "HISTOPATHOLOGY SLIDES"}
-          {cancerType === "melanoma" && "PHYSICAL SKIN IMAGE"}
+          {cancerType === "melanoma" && "CLOSE UP SKIN IMAGE"}
         </Button>
       </Box>
 
@@ -225,6 +229,16 @@ export default function UploadPanel({
           </Typography>
         </>
       )}
+      <Button
+        variant="contained"
+        sx={{ position: "dynamic", bgcolor: "#8cc2f7", borderRadius: "20px", mb: 2 }}
+        disabled={!reviewedEthics}
+        onClick={() => {
+          downloadDemoReport(true);
+        }}
+      >
+        DOWNLOAD DEMO REPORT
+      </Button>
     </Box>
   );
 }

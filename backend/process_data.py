@@ -17,12 +17,12 @@ if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
     torch.mps.manual_seed(SEED)
 
 # Folder locations
-ben_train_folder = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/benign/train"
-mal_train_folder = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/malignant/train"
-ben_val_folder   = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/benign/val"
-mal_val_folder   = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/malignant/val"
-ben_test_folder  = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/benign/test"
-mal_test_folder  = "./archive/BreaKHis_v1/BreaKHis_v1/dataset_split/malignant/test"
+ben_train_folder = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/benign/train"
+mal_train_folder = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/malignant/train"
+ben_val_folder   = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/benign/validate"
+mal_val_folder   = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/malignant/validate"
+ben_test_folder  = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/benign/test"
+mal_test_folder  = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/malignant/test"
 
 # ---------------- DATASET CLASS ----------------
 class CancerDataset(Dataset):

@@ -1,7 +1,15 @@
 import { Box, Button } from "@mui/material";
 import exampleImg from "../assets/logo.png";
 
-export default function Header({ reviewedEthics }: { reviewedEthics: () => void }) {
+export default function Header(
+  { hasChatStarted, reviewedEthics }: { hasChatStarted: boolean; reviewedEthics: () => void }) {
+  const openEthicsCode = () => {
+    window.open(
+      "https://www.unesco.org/en/artificial-intelligence/recommendation-ethics?utm_source=chatgpt.com",
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
   return (
     <>
       <Box
@@ -24,12 +32,6 @@ export default function Header({ reviewedEthics }: { reviewedEthics: () => void 
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
   {/* Left side */}
   <Box sx={{ display: "flex", gap: 2 }}>
-    <Button
-      variant="outlined"
-      sx={{ borderRadius: "20px", bgcolor: "white" }}
-    >
-      FIND A DOCTOR
-    </Button>
   </Box>
 
   {/* Right side */}
@@ -40,7 +42,11 @@ export default function Header({ reviewedEthics }: { reviewedEthics: () => void 
     <Button
       variant="outlined"
       sx={{ borderRadius: "20px", bgcolor: "white" }}
-      onClick={reviewedEthics}
+      disabled={!hasChatStarted}
+      onClick={() => {
+        reviewedEthics();
+        openEthicsCode();
+      }}
     >
       ETHICS CODE
     </Button>

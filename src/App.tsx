@@ -14,6 +14,7 @@ export default function App() {
   const [gradcamImage, setGradcamImage] = useState<string | null>(null);
   const [hasChatStarted, setHasChatStarted] = useState(false);
   const [reviewedEthics, setReviewedEthics] = useState(false);
+  const [demoReportDownloaded, setDemoReportDownloaded] = useState(false);
 
   // Debug logs to confirm state flows
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function App() {
       }}
     >
       <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-        <Header reviewedEthics={() => setReviewedEthics(true)} />
+        <Header hasChatStarted={hasChatStarted} reviewedEthics={() => setReviewedEthics(true)} />
 
         <Typography
           variant="h6"
@@ -52,6 +53,7 @@ export default function App() {
           uploadedImage={uploadedImage}
           hasChatStarted={hasChatStarted}
           ethicsReviewed={reviewedEthics}
+          downloadDemoReport={demoReportDownloaded}
         />
 
         <Box
@@ -64,6 +66,8 @@ export default function App() {
         >
           <Box sx={{ flex: 1, minWidth: "375px", display: "flex" }}>
             <UploadPanel
+              downloadDemoReport={(val) => setDemoReportDownloaded(val)}
+              reviewedEthics={reviewedEthics}
               runAnalysis={runAnalysis}
               setRunAnalysis={setRunAnalysis}
               cancerType={cancerType}
