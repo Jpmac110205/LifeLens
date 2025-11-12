@@ -19,8 +19,6 @@ export default function UploadPanel({
   reviewedEthics,
   runAnalysis,
   setRunAnalysis,
-  cancerType,
-  setCancerType,
   uploadedImage,
   setUploadedImage,
   setOriginalImage,
@@ -31,6 +29,8 @@ export default function UploadPanel({
   const [confidence, setConfidence] = useState<number | null>(null);
   const [riskLevel, setRiskLevel] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cancerType, setCancerType] = useState(""); // empty string
+
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -47,6 +47,7 @@ export default function UploadPanel({
       console.log("Uploaded file:", event.target.files[0]);
     }
   };
+  
 
   const handleCancerTypeChange = async (newType: string) => {
     setCancerType(newType);
@@ -84,49 +85,44 @@ export default function UploadPanel({
   };
 
   const handleRunAnalysis = async () => {
-    if (!uploadedImage) return;
+  if (!uploadedImage) return;
 
-    setLoading(true);
-    const formData = new FormData();
-    formData.append("file", uploadedImage);
+  setLoading(true);
+  const formData = new FormData();
+  formData.append("file", uploadedImage);
+  formData.append("cancerType", cancerType); // <-- send it here
 
-    // Convert to base64 for display
-    const base64Original = await fileToBase64(uploadedImage);
+  const base64Original = await fileToBase64(uploadedImage);
 
-    try {
-      // Step 1: Run prediction on backend
-      const response = await fetch("http://127.0.0.1:8080/predict", {
-        method: "POST",
-        body: formData,
-      });
+  try {
+    const response = await fetch("http://127.0.0.1:8080/predict", {
+      method: "POST",
+      body: formData,
+    });
 
-      const result = await response.json();
-      console.log("Prediction response:", result);
+    const result = await response.json();
+    console.log("Prediction response:", result);
 
-      // Update local state with results
-      setPrediction(result.diagnosis);
-      setConfidence(result.certainty_percent);
-      setRiskLevel(result.riskLevel);
+    setPrediction(result.diagnosis);
+    setConfidence(result.certainty_percent);
+    setRiskLevel(result.riskLevel);
 
-      // Normalize gradcam
-      const rawGrad = result.gradcam_overlay ?? result.gradcam_image ?? null;
-      const normalizedGrad = normalizeGradcam(rawGrad);
+    const rawGrad = result.gradcam_overlay ?? result.gradcam_image ?? null;
+    const normalizedGrad = normalizeGradcam(rawGrad);
 
-      // Send to parent App component
-      setOriginalImage(base64Original);
-      setGradcamImage(normalizedGrad);
+    setOriginalImage(base64Original);
+    setGradcamImage(normalizedGrad);
 
-      // Mark analysis complete
-      setRunAnalysis(true);
-      
-      console.log("Analysis complete! Ready for chat.");
-    } catch (error) {
-      console.error("Error running analysis:", error);
-      alert("Error running analysis. Check console for details.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setRunAnalysis(true);
+  } catch (error) {
+    console.error("Error running analysis:", error);
+    alert("Error running analysis. Check console for details.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
     <Box
@@ -166,18 +162,26 @@ export default function UploadPanel({
       )}
 
       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-        <Select
-          value={cancerType}
-          onChange={(e) => handleCancerTypeChange(e.target.value)}
-          sx={{ borderRadius: "20px" }}
-          disabled={runAnalysis}
-        >
-          <MenuItem value="breast cancer">BREAST CANCER</MenuItem>
-          <MenuItem value="melanoma">MELANOMA</MenuItem>
-        </Select>
+       <Select
+  value={cancerType}
+  onChange={(e) => handleCancerTypeChange(e.target.value)}
+  displayEmpty
+  sx={{ borderRadius: "20px" }}
+  disabled={runAnalysis}
+  renderValue={(selected) => {
+    if (!selected) {
+      return <span style={{ color: "gray" }}>Cancer Type</span>; // placeholder
+    }
+    return selected === "breast" ? "BREAST CANCER" : "MELANOMA";
+  }}
+>
+  <MenuItem value="breast">BREAST CANCER</MenuItem>
+  <MenuItem value="melanoma">MELANOMA</MenuItem>
+</Select>
+
 
         <Button variant="outlined" sx={{ borderRadius: "20px" }} disabled>
-          {cancerType === "breast cancer" && "HISTOPATHOLOGY SLIDES"}
+          {cancerType === "breast" && "HISTOPATHOLOGY SLIDES"}
           {cancerType === "melanoma" && "CLOSE UP SKIN IMAGE"}
         </Button>
       </Box>
@@ -185,7 +189,7 @@ export default function UploadPanel({
       <Typography
         sx={{ textAlign: "center", color: "gray", fontSize: "0.7rem", mb: 2 }}
       >
-        {cancerType === "breast cancer" && "Please upload histopathology slides."}
+        {cancerType === "breast" && "Please upload histopathology slides."}
         {cancerType === "melanoma" && "Please upload physical skin images."}
       </Typography>
 
@@ -237,7 +241,7 @@ export default function UploadPanel({
           downloadDemoReport(true);
         }}
       >
-        DOWNLOAD DEMO REPORT
+        DOWNLOAD COMING SOON
       </Button>
     </Box>
   );

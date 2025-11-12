@@ -5,6 +5,7 @@ from PIL import Image
 import base64
 from dotenv import load_dotenv
 
+from fastapi.params import Form
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -29,7 +30,7 @@ current_results = {
     "certainty": 0.0,
     "riskLevel": "unknown",
     "detection": "unknown",
-    "cancerType": "breast cancer",
+    "cancerType": "unknown",
     "history": [],  # Will store conversation history
 }
 
@@ -106,14 +107,14 @@ async def health_check():
 
 
 @app.post("/set-cancer-type")
-async def set_cancer_type(request: Request):
+async def set_cancer_type(cancerType: str, request: Request):
     """
     Set the cancer type before running prediction
     Helps the AI assistant know what to expect
     """
     try:
         data = await request.json()
-        cancer_type = data.get("cancerType", "breast cancer").lower()
+        cancer_type = data.get("cancerType", cancerType).lower()
         
         current_results["cancerType"] = cancer_type
         
@@ -126,46 +127,37 @@ async def set_cancer_type(request: Request):
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    """
-    Run ML model prediction on uploaded medical image
-    Returns prediction, confidence, Grad-CAM overlay, and risk level
-    """
+async def predict(file: UploadFile = File(...), cancerType: str = Form(...)):
     try:
-        # Read the uploaded file
         image_bytes = await file.read()
-        
-        # Run the ML model
-        certainty_val, diagnosis, overlay_img = predict_cancer_with_gradcam(image_bytes)
-        
+
+        # ✅ Use the cancer type sent from the frontend
+        certainty_val, diagnosis, overlay_img = predict_cancer_with_gradcam(image_bytes, cancerType)
+
         # Calculate risk level
         risk_level = determine_risk_level(diagnosis, certainty_val)
-        
+
         # Update global results
         current_results["certainty"] = certainty_val
         current_results["detection"] = diagnosis
         current_results["riskLevel"] = risk_level
-        
+        current_results["cancerType"] = cancerType  # optional: keep it in global state
+
         # Reset chat history with fresh system message
         current_results["history"] = [
-            create_system_message(
-                certainty_val,
-                risk_level,
-                diagnosis,
-                current_results["cancerType"]
-            )
+            create_system_message(certainty_val, risk_level, diagnosis, cancerType)
         ]
-        
-        # Convert overlay image to base64
+
+        # Convert overlay to base64
         if overlay_img.ndim == 2:  # Grayscale
             pil_img = Image.fromarray(overlay_img.astype("uint8"), mode="L").convert("RGB")
-        else:  # Already RGB
+        else:
             pil_img = Image.fromarray(overlay_img.astype("uint8"))
-        
+
         buffered = BytesIO()
         pil_img.save(buffered, format="PNG")
         overlay_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
+
         return {
             "status": "success",
             "certainty_percent": certainty_val,
@@ -173,11 +165,11 @@ async def predict(file: UploadFile = File(...)):
             "riskLevel": risk_level,
             "gradcam_overlay": f"data:image/png;base64,{overlay_base64}",
         }
-    
+
     except Exception as e:
         print(f"Prediction error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
+    
 
 @app.post("/chat")
 async def chat(request: Request):
