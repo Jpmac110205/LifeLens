@@ -1,248 +1,179 @@
-import { Box, Button, MenuItem, Select, Typography } from "@mui/material";
 import { useRef, useState } from "react";
-
-type UploadPanelProps = {
-  downloadDemoReport: (val: boolean) => void;
-  reviewedEthics: boolean;
-  runAnalysis: boolean;
-  setRunAnalysis: (val: boolean) => void;
-  cancerType: string;
-  setCancerType: (val: string) => void;
-  uploadedImage: File | null;
-  setUploadedImage: (file: File | null) => void;
-  setOriginalImage: (img: string | null) => void;
-  setGradcamImage: (img: string | null) => void;
-};
-
+import type { CancerType } from "../lib/types";
+import Icon from "./Icon";
 export default function UploadPanel({
-  downloadDemoReport,
-  reviewedEthics,
-  runAnalysis,
-  setRunAnalysis,
-  uploadedImage,
-  setUploadedImage,
-  setOriginalImage,
-  setGradcamImage,
-}: UploadPanelProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [prediction, setPrediction] = useState<string | null>(null);
-  const [confidence, setConfidence] = useState<number | null>(null);
-  const [riskLevel, setRiskLevel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [cancerType, setCancerType] = useState(""); // empty string
-
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      setUploadedImage(event.target.files[0]);
-      console.log("Uploaded file:", event.target.files[0]);
-    }
-  };
-  
-
-  const handleCancerTypeChange = async (newType: string) => {
-    setCancerType(newType);
-    
-    // Send cancer type to backend so AI knows what to expect
-    try {
-      await fetch("http://127.0.0.1:8000/set-cancer-type", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancerType: newType }),
-      });
-      console.log("Cancer type set on backend:", newType);
-    } catch (error) {
-      console.error("Error setting cancer type:", error);
-    }
-  };
-
-  const normalizeGradcam = (raw: string | undefined | null) => {
-    if (!raw) return null;
-    if (raw.startsWith("data:image")) return raw;
-    return `data:image/png;base64,${raw}`;
-  };
-
-  const getRiskLevelColor = (riskLevel: string) => {
-    switch (riskLevel?.toLowerCase()) {
-      case "high":
-        return "red";
-      case "medium":
-        return "orange";
-      case "low":
-        return "green";
-      default:
-        return "gray";
-    }
-  };
-
-  const handleRunAnalysis = async () => {
-  if (!uploadedImage) return;
-
-  setLoading(true);
-  const formData = new FormData();
-  formData.append("file", uploadedImage);
-  formData.append("cancerType", cancerType); // <-- send it here
-
-  const base64Original = await fileToBase64(uploadedImage);
-
-  try {
-    const response = await fetch("http://127.0.0.1:8080/predict", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await response.json();
-    console.log("Prediction response:", result);
-
-    setPrediction(result.diagnosis);
-    setConfidence(result.certainty_percent);
-    setRiskLevel(result.riskLevel);
-
-    const rawGrad = result.gradcam_overlay ?? result.gradcam_image ?? null;
-    const normalizedGrad = normalizeGradcam(rawGrad);
-
-    setOriginalImage(base64Original);
-    setGradcamImage(normalizedGrad);
-
-    setRunAnalysis(true);
-  } catch (error) {
-    console.error("Error running analysis:", error);
-    alert("Error running analysis. Check console for details.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
+  file,
+  preview,
+  cancerType,
+  loading,
+  hasResult,
+  error,
+  onFile,
+  onType,
+  onAnalyze,
+  onCancel,
+}: {
+  file: File | null;
+  preview: string | null;
+  cancerType: CancerType;
+  loading: boolean;
+  hasResult: boolean;
+  error: string | null;
+  onFile: (file: File | null) => void;
+  onType: (type: CancerType) => void;
+  onAnalyze: () => void;
+  onCancel: () => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   return (
-    <Box
-      style={{
-        height: "500px",
-        flex: 1,
-        backgroundColor: "white",
-        borderRadius: "40px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        padding: "1.5rem",
-      }}
-    >
+    <section className="panel upload-panel" aria-labelledby="upload-title">
+      <div className="panel-heading">
+        <span className="section-icon">
+          <Icon name="upload" />
+        </span>
+        <div>
+          <h2 id="upload-title">Start with an image</h2>
+          <p>A little input. A new perspective.</p>
+        </div>
+        <span className="panel-index">01</span>
+      </div>
+      <label className="field-label" htmlFor="cancer-type">
+        Analysis model <span>Required</span>
+      </label>
+      <div className="select-wrap">
+        <select
+          id="cancer-type"
+          value={cancerType}
+          disabled={loading}
+          onChange={(event) => onType(event.target.value as CancerType)}
+        >
+          <option value="breast">Breast cancer</option>
+          <option value="melanoma">Melanoma</option>
+        </select>
+        <Icon name="activity" size={18} />
+      </div>
+      <p className="field-hint">
+        {cancerType === "breast"
+          ? "For histopathology slide images."
+          : "For close-up skin images."}
+      </p>
       <input
+        ref={input}
+        className="visually-hidden"
         type="file"
-        accept="image/*"
-        ref={fileInputRef}
-        style={{ display: "none" }}
-        onChange={handleFileChange}
+        tabIndex={-1}
+        accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+        disabled={loading}
+        aria-label="Upload research image"
+        onChange={(event) => {
+          if (event.target.files?.[0]) onFile(event.target.files[0]);
+          event.target.value = "";
+        }}
       />
-
-      <Button
-        variant="contained"
-        sx={{ bgcolor: "#8cc2f7", borderRadius: "20px", mb: 2 }}
-        disabled={runAnalysis}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        UPLOAD IMAGES
-      </Button>
-
-      {uploadedImage && (
-        <Typography variant="body1" sx={{ mb: 2, textAlign: "center" }}>
-          Selected File: {uploadedImage.name}
-        </Typography>
-      )}
-
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-       <Select
-  value={cancerType}
-  onChange={(e) => handleCancerTypeChange(e.target.value)}
-  displayEmpty
-  sx={{ borderRadius: "20px" }}
-  disabled={runAnalysis}
-  renderValue={(selected) => {
-    if (!selected) {
-      return <span style={{ color: "gray" }}>Cancer Type</span>; // placeholder
-    }
-    return selected === "breast" ? "BREAST CANCER" : "MELANOMA";
-  }}
->
-  <MenuItem value="breast">BREAST CANCER</MenuItem>
-  <MenuItem value="melanoma">MELANOMA</MenuItem>
-</Select>
-
-
-        <Button variant="outlined" sx={{ borderRadius: "20px" }} disabled>
-          {cancerType === "breast" && "HISTOPATHOLOGY SLIDES"}
-          {cancerType === "melanoma" && "CLOSE UP SKIN IMAGE"}
-        </Button>
-      </Box>
-
-      <Typography
-        sx={{ textAlign: "center", color: "gray", fontSize: "0.7rem", mb: 2 }}
-      >
-        {cancerType === "breast" && "Please upload histopathology slides."}
-        {cancerType === "melanoma" && "Please upload physical skin images."}
-      </Typography>
-
-      <Button
-        variant="contained"
-        sx={{ bgcolor: "#8cc2f7", borderRadius: "20px", mb: 3 }}
-        onClick={handleRunAnalysis}
-        disabled={runAnalysis || !uploadedImage || loading}
-      >
-        {loading ? "ANALYZING..." : "RUN ANALYSIS"}
-      </Button>
-
-      {runAnalysis && prediction && confidence !== null && riskLevel && (
-        <>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            Risk Level:{" "}
-            <span
-              style={{
-                color: getRiskLevelColor(riskLevel),
-                fontWeight: "bold",
-              }}
-            >
-              {riskLevel.toUpperCase()}
-            </span>
-          </Typography>
-
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            Prediction:{" "}
-            <span
-              style={{
-                color: prediction === "malignant" ? "red" : "green",
-                fontWeight: "bold",
-              }}
-            >
-              {prediction.toUpperCase()}
-            </span>
-          </Typography>
-
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            Confidence: <b>{confidence}%</b>
-          </Typography>
-        </>
-      )}
-      <Button
-        variant="contained"
-        sx={{ position: "dynamic", bgcolor: "#8cc2f7", borderRadius: "20px", mb: 2 }}
-        disabled={!reviewedEthics}
-        onClick={() => {
-          downloadDemoReport(true);
+      <div
+        className={`dropzone ${dragging ? "dragging" : ""} ${file ? "has-file" : ""}`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!loading) setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+          if (!loading && event.dataTransfer.files[0])
+            onFile(event.dataTransfer.files[0]);
         }}
       >
-        DOWNLOAD COMING SOON
-      </Button>
-    </Box>
+        {file && preview ? (
+          <>
+            <div className="preview-wrap">
+              <img src={preview} alt="Preview of selected research image" />
+              <button
+                className="preview-remove icon-button"
+                disabled={loading}
+                onClick={() => onFile(null)}
+                aria-label="Remove image"
+              >
+                <Icon name="close" size={17} />
+              </button>
+            </div>
+            <div className="selected-file">
+              <Icon name="file" size={18} />
+              <div>
+                <strong title={file.name}>{file.name}</strong>
+                <small>
+                  {(file.size / 1024 / 1024).toFixed(2)} MB · Ready to analyze
+                </small>
+              </div>
+              <button
+                className="text-button"
+                disabled={loading}
+                onClick={() => input.current?.click()}
+              >
+                Change
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            className="dropzone-button"
+            disabled={loading}
+            onClick={() => input.current?.click()}
+          >
+            <span className="upload-symbol">
+              <Icon name="upload" size={25} />
+            </span>
+            <strong>Drop your image here</strong>
+            <span>
+              or <b>browse files</b> to upload
+            </span>
+            <small>JPG or PNG · Up to 10 MB</small>
+          </button>
+        )}
+      </div>
+      <div className="privacy-note">
+        <Icon name="shield" size={15} />
+        <span>Your image is processed for this session. It is not saved.</span>
+      </div>
+      {error && (
+        <div className="inline-error" role="alert">
+          <Icon name="info" size={17} />
+          {error}
+        </div>
+      )}
+      <button
+        className="button button-primary analyze-button"
+        disabled={!file || loading || hasResult}
+        onClick={onAnalyze}
+      >
+        {loading ? (
+          <>
+            <span className="spinner" />
+            Analyzing image…
+          </>
+        ) : hasResult ? (
+          <>
+            <Icon name="check" size={18} />
+            Analysis complete
+          </>
+        ) : (
+          <>
+            <Icon name="spark" size={18} />
+            Run analysis
+            <Icon name="arrow" size={18} />
+          </>
+        )}
+      </button>
+      {loading ? (
+        <button className="text-button cancel-button" onClick={onCancel}>
+          Cancel analysis
+        </button>
+      ) : (
+        <p className="upload-footnote">
+          Model output is for research, not a clinical diagnosis.
+        </p>
+      )}
+    </section>
   );
 }

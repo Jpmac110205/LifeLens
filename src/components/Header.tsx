@@ -1,137 +1,120 @@
-import { useEffect, useState } from "react";
-import { Box, Button } from "@mui/material";
-import exampleImg from "../assets/logo.png";
-
-export default function Header(
-  { hasChatStarted, reviewedEthics }: { hasChatStarted: boolean; reviewedEthics: () => void }) {
-  const [creditsOpen, setCreditsOpen] = useState(false);
-
-  const openEthicsCode = () => {
-    window.open(
-      "https://www.unesco.org/en/artificial-intelligence/recommendation-ethics?utm_source=chatgpt.com",
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCreditsOpen(false);
-    };
-    if (creditsOpen) document.addEventListener("keydown", onKey);
-    else document.removeEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [creditsOpen]);
+import Icon from "./Icon";
+export default function Header({
+  onAbout,
+  onEthics,
+  onReset,
+  hasSession,
+  status,
+  onRetry,
+}: {
+  onAbout: () => void;
+  onEthics: () => void;
+  onReset: () => void;
+  hasSession: boolean;
+  status: "checking" | "online" | "offline";
+  onRetry: () => void;
+}) {
   return (
-  <>
-      <Box
-        style={{
-          width: "30%",
-          alignItems: "center",
-          justifyContent: "center",
-          display: "flex",
-          marginLeft: "auto",
-          marginRight: "auto",
-        }}
-      >
-        <img
-          src={exampleImg}
-          alt="LifeLens Logo"
-          style={{ width: "100%", objectFit: "cover" }}
-        />
-      </Box>
-
-    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-  {/* Left side */}
-  <Box sx={{ display: "flex", gap: 2 }}>
-  </Box>
-
-  {/* Right side */}
-    <Box sx={{ display: "flex", gap: 2 }}>
-    <Button
-      variant="outlined"
-      sx={{ borderRadius: "20px", bgcolor: "white" }}
-      onClick={() => setCreditsOpen(true)}
-    >
-      CREDITS
-    </Button>
-    <Button
-      variant="outlined"
-      sx={{ borderRadius: "20px", bgcolor: "white" }}
-      disabled={!hasChatStarted}
-      onClick={() => {
-        reviewedEthics();
-        openEthicsCode();
-      }}
-    >
-      ETHICS CODE
-    </Button>
-  </Box>
-</Box>
-        {/* Credits modal */}
-        {creditsOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Credits"
-            onClick={() => setCreditsOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.45)",
-              zIndex: 9999,
-            }}
+    <>
+      <aside className="sidebar">
+        <a className="brand" href="#workspace" aria-label="LifeLens workspace">
+          <span className="brand-symbol">
+            <Icon name="lens" size={30} />
+          </span>
+          LifeLens<span className="brand-dot">.</span>
+        </a>
+        <div className="sidebar-caption">YOUR WORKSPACE</div>
+        <nav aria-label="Main navigation">
+          <a href="#workspace" className="nav-item active" aria-current="page">
+            <Icon name="grid" />
+            Overview
+            <Icon name="arrow" size={16} />
+          </a>
+          <a
+            href="#assistant"
+            className="nav-item"
+            title="AI assistant"
+            aria-label="AI assistant"
           >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                maxWidth: 600,
-                width: "90%",
-                background: "#fff",
-                borderRadius: 8,
-                padding: 20,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <h3 style={{ margin: 0 }}>Credits</h3>
-                <button
-                  aria-label="Close credits"
-                  onClick={() => setCreditsOpen(false)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    fontSize: 20,
-                    cursor: "pointer",
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div style={{ lineHeight: 1.6 }}>
-                <p style={{ marginTop: 0 }}>
-                  LifeLens was built by a solo developer. Data and models are provided for research and demonstration purposes only. All code is open source and located on GitHub.
-                </p>
-                <p>
-                  Links: <br></br>          
-                  https://www.kaggle.com/datasets/hasnainjaved/melanoma-skin-cancer-dataset-of-10000-images
-                  https://www.kaggle.com/datasets/obulisainaren/multi-cancer
-                  https://www.kaggle.com/datasets/ambarish/breakhis
-                </p>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-                <Button variant="contained" onClick={() => setCreditsOpen(false)}>
-                  Close
-                </Button>
-              </div>
+            <Icon name="chat" />
+            AI assistant
+          </a>
+          <button
+            className="nav-item"
+            title="Responsible AI"
+            aria-label="Responsible AI"
+            onClick={onEthics}
+          >
+            <Icon name="shield" />
+            Responsible AI
+          </button>
+          <button
+            className="nav-item"
+            title="About LifeLens"
+            aria-label="About LifeLens"
+            onClick={onAbout}
+          >
+            <Icon name="info" />
+            About LifeLens
+          </button>
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="research-card">
+            <span className="research-icon">
+              <Icon name="heart" size={22} />
+            </span>
+            <h3>Built for understanding.</h3>
+            <p>
+              Explore AI-assisted image analysis in a thoughtful research
+              environment.
+            </p>
+            <span className="research-label">
+              <span className="status-dot" />
+              RESEARCH & EDUCATION
+            </span>
+          </div>
+          <div className="sidebar-foot">
+            <span className="mini-brand">
+              <Icon name="lens" size={18} />
+            </span>
+            <div>
+              LifeLens workspace<small>Research edition · v1.0</small>
             </div>
           </div>
-        )}
+        </div>
+      </aside>
+      <header className="topbar">
+        <div className="breadcrumb">
+          <span>Workspace</span>
+          <span>/</span>
+          <strong>Overview</strong>
+        </div>
+        <div className="topbar-actions">
+          <button
+            className={`connection ${status}`}
+            onClick={onRetry}
+            title="Check backend connection"
+          >
+            <span className="status-dot" />
+            {status === "online"
+              ? "Server connected"
+              : status === "checking"
+                ? "Connecting"
+                : "Server offline"}
+          </button>
+          <button
+            className="button button-secondary button-small"
+            onClick={onReset}
+            disabled={!hasSession}
+          >
+            <Icon name="reset" size={15} />
+            <span>New analysis</span>
+          </button>
+          <span className="avatar" aria-label="Research workspace">
+            R
+          </span>
+        </div>
+      </header>
     </>
   );
 }

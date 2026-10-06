@@ -1,160 +1,200 @@
-import { Box, Button, TextField, Typography } from "@mui/material";
-import { useState, useRef, useEffect } from "react";
-
+import { useEffect, useRef, useState } from "react";
+import { sendChat } from "../lib/api";
+import type { Analysis, Message } from "../lib/types";
+import Icon from "./Icon";
+const prompts = [
+  "Explain my results",
+  "What does confidence mean?",
+  "How does the attention map work?",
+];
 export default function ChatPanel({
-  setHasChatStarted,
-  runAnalysis,
+  analysis,
+  messages,
+  onMessages,
 }: {
-  setHasChatStarted: (val: boolean) => void;
-  runAnalysis: boolean;
+  analysis: Analysis | null;
+  messages: Message[];
+  onMessages: (messages: Message[]) => void;
 }) {
-  const [messages, setMessages] = useState([
-    { text: "Hi I am LifeLens!", sender: "bot" },
-  ]);
   const [input, setInput] = useState("");
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
-
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  const log = useRef<HTMLDivElement>(null);
+  useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async () => {
-  if (!input.trim() || !runAnalysis) return;
-
-  const userMsg = { text: input, sender: "user" };
-  setMessages((prev) => [...prev, userMsg]);
-  setInput("");
-  setHasChatStarted(true);
-
-  try {
-    console.log("Sending message to http://localhost:8080/chat");
-    
-    const res = await fetch("http://localhost:8080/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
-    });
-
-    console.log("Response status:", res.status);
-    
-    if (!res.ok) {
-      console.error("HTTP Error:", res.status, res.statusText);
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    console.log("Bot response:", data);
-    
-    const botMsg = { text: data.reply, sender: "bot" };
-    setMessages((prev) => [...prev, botMsg]);
-  } catch (err) {
-    console.error("Full error:", err);
-    setMessages((prev) => [
-      ...prev,
-      {
-        text: `⚠️ Failed to reach AI backend: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        sender: "bot",
-      },
-    ]);
-  }
-};
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSend();
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [messages, pending, error]);
+  const submit = async (text: string, retry = false) => {
+    const content = text.trim();
+    if (
+      !analysis ||
+      !content ||
+      pending ||
+      controller.current ||
+      content.length > 2000
+    )
+      return;
+    const history = retry ? messages.slice(0, -1) : messages;
+    const next: Message[] = [...history, { role: "user", content }];
+    onMessages(next);
+    setInput("");
+    setError(null);
+    setPending(true);
+    const request = new AbortController();
+    controller.current = request;
+    try {
+      const reply = await sendChat(content, analysis, history, request.signal);
+      if (!request.signal.aborted)
+        onMessages([...next, { role: "assistant", content: reply }]);
+    } catch (cause) {
+      if (!request.signal.aborted)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not reach the assistant. Please try again.",
+        );
+    } finally {
+      if (!request.signal.aborted) {
+        setPending(false);
+        controller.current = null;
+      }
     }
   };
-
   return (
-    <Box
-      sx={{
-        width: "100%",
-        height: 450,
-        backgroundColor: "white",
-        borderRadius: "40px",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        p: 2,
-        position: "relative",
-      }}
+    <section
+      id="assistant"
+      className="panel chat-panel"
+      aria-labelledby="chat-title"
     >
-      <Typography variant="h6" sx={{ textAlign: "center", fontWeight: "bold" }}>
-        Chat with LifeLens AI
-      </Typography>
-
-      {!runAnalysis && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "rgba(255,255,255,0.7)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1,
-            borderRadius: "40px",
-            textAlign: "center",
-            p: 2,
-          }}
-        >
-          <Typography variant="body1" sx={{ color: "#555" }}>
-            Please run the AI analysis first to start chatting.
-          </Typography>
-        </Box>
-      )}
-
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-          pr: 1,
+      <div className="panel-heading">
+        <span className="section-icon">
+          <Icon name="spark" />
+        </span>
+        <div>
+          <h2 id="chat-title">A conversation for clarity</h2>
+          <p>Ask LifeLens about the model and your results.</p>
+        </div>
+        <span className="badge badge-green">
+          <Icon name="spark" size={12} />
+          AI assistant
+        </span>
+      </div>
+      <div
+        className="chat-body"
+        ref={log}
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation"
+      >
+        <div className="message assistant-message">
+          <span className="bot-avatar">
+            <Icon name="lens" size={20} />
+          </span>
+          <div>
+            <strong>
+              LifeLens <span>Research assistant</span>
+            </strong>
+            <p>
+              {analysis
+                ? "Your analysis is ready. I can help explain the model prediction, confidence, and attention map. What would you like to explore?"
+                : "Hello, curious mind. Upload an image and run an analysis to get started. Then we can explore what the model sees, together."}
+            </p>
+          </div>
+        </div>
+        {messages.map((message, index) => (
+          <div
+            className={`message ${message.role === "user" ? "user-message" : "assistant-message"}`}
+            key={index}
+          >
+            <span
+              className={message.role === "user" ? "user-avatar" : "bot-avatar"}
+            >
+              {message.role === "user" ? "Y" : <Icon name="lens" size={20} />}
+            </span>
+            <div>
+              <strong>{message.role === "user" ? "You" : "LifeLens"}</strong>
+              <p>{message.content}</p>
+            </div>
+          </div>
+        ))}
+        {pending && (
+          <div className="chat-pending" role="status">
+            <span className="spinner" />
+            LifeLens is thinking…
+          </div>
+        )}
+        {error && (
+          <div className="inline-error" role="alert">
+            <span>{error}</span>
+            <button
+              className="text-button"
+              onClick={() =>
+                void submit(messages[messages.length - 1]?.content || "", true)
+              }
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="suggested-prompts">
+        {prompts.map((prompt) => (
+          <button
+            key={prompt}
+            disabled={!analysis || pending || !!error}
+            onClick={() => void submit(prompt)}
+          >
+            {prompt}
+            <Icon name="arrow" size={13} />
+          </button>
+        ))}
+      </div>
+      <form
+        className="chat-input"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!error) void submit(input);
         }}
       >
-        {messages.map((msg, idx) => (
-          <Box
-            key={idx}
-            sx={{
-              alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-              bgcolor: msg.sender === "user" ? "#8cc2f7" : "lightgray",
-              p: 1,
-              borderRadius: "10px",
-              color: msg.sender === "user" ? "white" : "black",
-              maxWidth: "70%",
-              wordWrap: "break-word",
-            }}
-          >
-            {msg.text}
-          </Box>
-        ))}
-        <div ref={chatEndRef} />
-      </Box>
-
-      <Box sx={{ display: "flex", mt: 1 }}>
-        <TextField
-          fullWidth
-          placeholder="Ask LifeLens..."
-          variant="outlined"
+        <textarea
+          rows={1}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyPress}
-          disabled={!runAnalysis}
-          sx={{
-            borderRadius: "20px",
-            bgcolor: "white",
-            "& .MuiInputBase-input": { p: "10px 14px" },
+          maxLength={2000}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              if (!error) void submit(input);
+            }
           }}
+          disabled={!analysis || pending || !!error}
+          aria-label="Ask LifeLens"
+          placeholder={
+            analysis
+              ? "What would you like to understand?"
+              : "Run an analysis to start your conversation…"
+          }
         />
-        <Button sx={{ ml: 1 }} onClick={handleSend} disabled={!runAnalysis}>
-          ➤
-        </Button>
-      </Box>
-    </Box>
+        <button
+          className="send-button"
+          disabled={!analysis || pending || !input.trim() || !!error}
+          aria-label="Send message"
+        >
+          <Icon name="arrow" size={19} />
+        </button>
+      </form>
+      <div className="chat-footnote">
+        <Icon name="info" size={13} />
+        <span>
+          AI can make mistakes. Use these explanations for research and discuss
+          medical questions with a professional.
+        </span>
+      </div>
+    </section>
   );
 }

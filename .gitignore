@@ -38,3 +38,7 @@ __pycache__/
 *.sw?
 backend/venv/
 backend/Miniconda3-latest-MacOSX-arm64.sh
+
+# Browser test artifacts
+playwright-report/
+test-results/

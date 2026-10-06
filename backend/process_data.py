@@ -25,6 +25,8 @@ ben_test_folder  = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/benign/test
 mal_test_folder  = "/Users/jpmac1102/Desktop/melanoma_cancer_dataset/malignant/test"
 
 # ---------------- DATASET CLASS ----------------
+#makes data comparible via pytorch
+#images are transformed on the fly during training/validation/testing
 class CancerDataset(Dataset):
     def __init__(self, data, transform=None):
         self.data = data
@@ -51,6 +53,7 @@ def load_images_from_folder(folder, label, img_size=224):
             img = cv2.imread(path, cv2.IMREAD_COLOR)
             if img is None:
                 continue
+            #images resized and converted to RGB
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, (img_size, img_size))
             data.append([img, label])
@@ -77,6 +80,8 @@ np.random.shuffle(validation_data)
 np.random.shuffle(testing_data)
 
 # ---------------- TRANSFORMS ----------------
+#needs to be compatible with ResNet18 which expects 3-channel RGB images
+#randomly flips and rotates images for augmentation during training
 train_transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.RandomHorizontalFlip(),

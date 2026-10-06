@@ -1,64 +1,55 @@
-import { Box, Typography } from "@mui/material";
-
+import Icon from "./Icon";
 export default function ProgressBar({
-  runAnalysis,
-  uploadedImage,
-  hasChatStarted,
-  ethicsReviewed,
-  downloadDemoReport,
+  hasFile,
+  hasResult,
+  hasChat,
+  exported,
+  loading,
 }: {
-  runAnalysis: boolean;
-  uploadedImage: File | null;
-  hasChatStarted: boolean;
-  ethicsReviewed: boolean;
-  downloadDemoReport: boolean;
+  hasFile: boolean;
+  hasResult: boolean;
+  hasChat: boolean;
+  exported: boolean;
+  loading: boolean;
 }) {
   const steps = [
-    { text: "Upload Cancer File/Image", done: !!uploadedImage },
-    { text: "Run AI Analysis Model", done: runAnalysis },
-    { text: "Discuss results with LifeLens", done: hasChatStarted },
-    { text: "Review AI Ethics Code", done: ethicsReviewed },
-    { text: "Download Demo Report", done: downloadDemoReport },
+    { title: "Upload image", detail: "Choose your input", done: hasFile },
+    {
+      title: "Run analysis",
+      detail: "Explore model insights",
+      done: hasResult,
+    },
+    {
+      title: "Understand results",
+      detail: "Ask your questions",
+      done: hasChat,
+    },
+    {
+      title: "Save your report",
+      detail: "Keep a research copy",
+      done: exported,
+    },
   ];
-
+  const active = steps.findIndex((step) => !step.done);
   return (
-    <Box
-      sx={{
-        width: "100%",
-        height: 200,
-        backgroundColor: "white",
-        borderRadius: "40px",
-        mb: 4,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-around",
-        p: 2,
-      }}
-    >
+    <ol className="steps" aria-label="Analysis progress">
       {steps.map((step, i) => (
-        <Box
-          key={i}
-          sx={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}
+        <li
+          key={step.title}
+          className={`${step.done ? "done" : ""} ${i === active ? "current" : ""}`}
+          aria-current={i === active ? "step" : undefined}
         >
-          <Box
-            sx={{
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              bgcolor: step.done ? "limegreen" : "lightgray",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 1,
-            }}
-          >
-            <Typography variant="h6">{step.done ? "✓" : "✕"}</Typography>
-          </Box>
-          <Typography sx={{ textAlign: "center", fontSize: "0.9rem" }}>
-            {step.text}
-          </Typography>
-        </Box>
+          <span className={`step-number ${i === 1 && loading ? "pulse" : ""}`}>
+            {step.done ? <Icon name="check" size={17} /> : `0${i + 1}`}
+          </span>
+          <div>
+            <strong>{step.title}</strong>
+            <small>
+              {i === 1 && loading ? "Analysis in progress…" : step.detail}
+            </small>
+          </div>
+        </li>
       ))}
-    </Box>
+    </ol>
   );
 }
