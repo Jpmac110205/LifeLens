@@ -24,12 +24,12 @@ Use Node.js **22.12+** (or 20.19+) and Python **3.11+** for a new environment wi
 ```sh
 npm install
 python3 -m venv backend/venv
-backend/venv/bin/python -m pip install -r backend/requirements.txt
+backend/venv/bin/python -m pip install -r requirements.txt
 ```
 
 If you already have a working backend environment, reuse it instead of recreating it. On Windows, substitute `backend\venv\Scripts\python.exe` for `backend/venv/bin/python`.
 
-Copy `.env.example` to `.env` if you need to configure chat. Set `OPENAI_API_KEY` in that file; `OPENAI_MODEL` defaults to `gpt-4`. Image classification works without an OpenAI key. Never expose the key using a `VITE_` variable or put it in the browser.
+Copy `.env.example` to `.env` and set `APP_MODE=local`. Set `OPENAI_API_KEY` in that file; `OPENAI_MODEL` defaults to `gpt-4`. Image classification works without an OpenAI key. Never expose the key using a `VITE_` variable or put it in the browser.
 
 Start the backend from the project root:
 
@@ -77,7 +77,7 @@ backend/
   test_api.py             API regression tests
   process_data.py          Training dataset preparation
   train_model.py           Training utilities
-  requirements.txt        Python dependencies
+requirements.txt           Python dependencies
 tests/                     Browser regression tests and synthetic fixture
 ```
 
@@ -89,7 +89,12 @@ Chat sends questions, recent messages, and model outputs to OpenAI; uploaded ima
 
 ## Production configuration
 
-`npm run build` creates `dist/`. Host the frontend with a reverse proxy forwarding `/api` to FastAPI, or set `VITE_API_URL` to your backend's public URL before building. For a separate frontend origin, set `CORS_ORIGINS` to a comma-separated list of allowed frontend URLs. Configure `OPENAI_API_KEY` and `OPENAI_MODEL` only in the backend environment.
+Application mode is controlled by `APP_MODE` in the root `.env`, independently of Vite's development/build mode. No mode switch is shown in the interface.
+
+- `APP_MODE=local`: frontend at `http://localhost:5173`, with `/api` proxied to `LOCAL_API_URL` (`http://127.0.0.1:8080`). The dev server requires port 5173 instead of silently choosing another port.
+- `APP_MODE=production`: API requests go directly to `https://lifelens-mmt7.onrender.com`, using `PRODUCTION_APP_URL`. This URL must serve the FastAPI endpoints, such as `/health` and `/predict`.
+
+Restart the backend and Vite after editing `.env`. Run `npm run build` again when changing the mode of a deployed frontend; the API URL is embedded at build time. `npm run build` creates `dist/` for frontend hosting. For Render, supply the same mode and URL values in the service environment (the private `.env` is excluded from Git). Backend CORS allows the selected application URL. Configure `OPENAI_API_KEY` and `OPENAI_MODEL` only for the backend; they are never embedded in the browser bundle.
 
 The chat and export endpoints require request-specific analysis and history. They no longer use a global “current result.” The `/set-cancer-type` and `/reset` endpoints remain for compatibility; the model is selected with each prediction and session data is cleared in the browser.
 

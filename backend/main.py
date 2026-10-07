@@ -24,7 +24,12 @@ else:
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT.parent / '.env')
-load_dotenv(ROOT / '.env')
+APP_MODE = os.getenv('APP_MODE')
+if APP_MODE not in ('local', 'production'):
+    raise RuntimeError('Set APP_MODE to local or production in the project .env.')
+APP_URL = os.getenv('LOCAL_APP_URL' if APP_MODE == 'local' else 'PRODUCTION_APP_URL')
+if not APP_URL:
+    raise RuntimeError('Set the selected application URL in the project .env.')
 logger = logging.getLogger(__name__)
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
@@ -32,7 +37,7 @@ CancerType = Literal['breast', 'melanoma']
 app = FastAPI(title='LifeLens research API', version='1.0.0')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000').split(','),
+    allow_origins=[APP_URL.rstrip('/')],
     allow_credentials=False,
     allow_methods=['GET', 'POST'],
     allow_headers=['Content-Type'],
