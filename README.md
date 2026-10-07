@@ -51,7 +51,7 @@ Open http://localhost:5173. Vite proxies `/api` to the backend on port 8080. Che
 npm run build
 npm run lint
 npm test
-backend/venv/bin/python -m unittest backend.test_api -v
+backend/venv/bin/python -m unittest backend.test_api backend.test_inference -v
 ```
 
 The Playwright suite uses installed Google Chrome and checks desktop and mobile layouts, upload validation, request errors, cancellation, chat retry and isolation, consent-based report downloads, and session reset. If Chrome is missing, run `npx playwright install chrome`. Browser tests mock model and chat responses. Backend tests mock inference and OpenAI, so they do not make paid requests or require an API key.
@@ -106,7 +106,7 @@ Create a Python Web Service with the repository root as its working directory (l
 Build command:
 
 ```sh
-pip install -r requirements.txt && npm ci && npm run build
+pip install -r requirements-render.txt && npm ci && npm run build
 ```
 
 Start command:
@@ -115,7 +115,9 @@ Start command:
 python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `APP_MODE=production` and `PRODUCTION_APP_URL=https://lifelens-mmt7.onrender.com` in Render's environment settings before building. Add `OPENAI_API_KEY` for chat and optionally `OPENAI_MODEL`. Both the UI and API will be available at that Render URL. The model checkpoints must be included in the deployment. Local mode continues to use Vite on port 5173 and FastAPI on port 8080.
+Set `APP_MODE=production` and `PRODUCTION_APP_URL=https://lifelens-mmt7.onrender.com` in Render's environment settings before building. Add `OPENAI_API_KEY` for chat and optionally `OPENAI_MODEL`. Both the UI and API will be available at that Render URL. The model checkpoints must be included in the deployment. Use one Uvicorn worker (the start command above does this); multiple workers duplicate the runtime's memory.
+
+The Render dependency file selects CPU-only PyTorch. Inference memory is reduced through memory-mapped checkpoint weights, frozen model parameters with gradients only at the Grad-CAM target layer, one CPU compute thread, and overlays capped at 1024 pixels on the longest side. Classifier preprocessing still uses the original image. Only one prediction is allowed per process; overlapping predictions receive a retryable busy response instead of allocating a second model. Large input images still need decoding memory, and actual peak usage depends on the hosting runtime. Check Render's memory metrics after deployment before deciding whether 512 MB is enough. Local mode continues to use Vite on port 5173 and FastAPI on port 8080.
 
 The chat and export endpoints require request-specific analysis and history. They no longer use a global “current result.” The `/set-cancer-type` and `/reset` endpoints remain for compatibility; the model is selected with each prediction and session data is cleared in the browser.
 

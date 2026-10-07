@@ -1,4 +1,5 @@
 """LifeLens API. Analysis and conversation context belong to each request."""
+import asyncio
 import base64
 import logging
 import os
@@ -34,6 +35,8 @@ if not APP_URL:
 logger = logging.getLogger(__name__)
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
+# One inference per process: parallel requests would duplicate model/image memory.
+prediction_lock = asyncio.Lock()
 CancerType = Literal['breast', 'melanoma']
 app = FastAPI(title='LifeLens research API', version='1.0.0')
 app.add_middleware(
@@ -117,7 +120,7 @@ def analyze_image(image_bytes: bytes, cancer_type: str) -> dict:
     validate_image(image_bytes)
     certainty, diagnosis, overlay = predict_cancer_with_gradcam(image_bytes, cancer_type)
     buffered = BytesIO()
-    Image.fromarray(overlay.astype('uint8')).save(buffered, format='PNG')
+    Image.fromarray(overlay.astype('uint8', copy=False)).save(buffered, format='PNG')
     return {
         'status': 'success',
         'certainty_percent': certainty,
@@ -145,15 +148,18 @@ def set_cancer_type(data: CancerTypeRequest):
 @app.post('/predict')
 async def predict(file: UploadFile = File(...), cancerType: CancerType = Form(...)):
     try:
-        if file.content_type not in ('image/jpeg', 'image/png'):
-            raise HTTPException(415, 'Only JPG and PNG images are supported.')
-        image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
-        if len(image_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, 'This image is too large. Choose a file under 10 MB.')
-        if not image_bytes:
-            raise HTTPException(400, 'The uploaded file is empty.')
-        # Model inference must not block the event loop or other health/chat requests.
-        return await run_in_threadpool(analyze_image, image_bytes, cancerType)
+        if prediction_lock.locked():
+            raise HTTPException(503, 'The model is busy analyzing another image. Please try again shortly.')
+        async with prediction_lock:
+            if file.content_type not in ('image/jpeg', 'image/png'):
+                raise HTTPException(415, 'Only JPG and PNG images are supported.')
+            image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
+            if len(image_bytes) > MAX_UPLOAD_BYTES:
+                raise HTTPException(413, 'This image is too large. Choose a file under 10 MB.')
+            if not image_bytes:
+                raise HTTPException(400, 'The uploaded file is empty.')
+            # Model inference must not block the event loop or other health/chat requests.
+            return await run_in_threadpool(analyze_image, image_bytes, cancerType)
     except HTTPException:
         raise
     except FileNotFoundError:

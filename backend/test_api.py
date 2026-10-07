@@ -1,4 +1,6 @@
 """API regression tests. Does not call OpenAI or load real checkpoints."""
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 import base64
 from io import BytesIO
 import os
@@ -59,6 +61,30 @@ class ApiTests(unittest.TestCase):
     @patch('backend.main.predict_cancer_with_gradcam', side_effect=FileNotFoundError)
     def test_missing_model_returns_recoverable_error(self, _):
         self.assertEqual(self.predict().status_code, 503)
+
+    def test_overlapping_prediction_is_rejected_while_health_stays_available(self):
+        started, release = Event(), Event()
+
+        def inference(image, cancer_type):
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError('Test inference was not released')
+            return (91.2, 'benign', np.zeros((24, 32, 3), dtype=np.uint8))
+
+        with patch('backend.main.predict_cancer_with_gradcam', side_effect=inference) as model:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                first = executor.submit(self.predict)
+                try:
+                    self.assertTrue(started.wait(5))
+                    busy = self.predict()
+                    self.assertEqual(busy.status_code, 503)
+                    self.assertIn('busy', busy.json()['detail'])
+                    self.assertEqual(self.client.get('/health').status_code, 200)
+                    self.assertEqual(model.call_count, 1)
+                finally:
+                    release.set()
+                self.assertEqual(first.result(timeout=5).status_code, 200)
+            self.assertEqual(self.predict().status_code, 200)
 
     def test_chat_requires_analysis_and_valid_limits(self):
         self.assertEqual(self.client.post('/chat', json={'message': 'Hello'}).status_code, 422)

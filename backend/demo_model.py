@@ -12,6 +12,9 @@ if __package__:
 else:
     from explainability import GradCAM, overlay_heatmap
 
+# Small CPU instances benefit from one compute thread and smaller workspaces.
+torch.set_num_threads(1)
+
 # Match validation/training preprocessing and keep the whole image aligned with CAM.
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -28,19 +31,28 @@ def load_model(cancer_type: str):
     if not model_path.is_file():
         raise FileNotFoundError(model_path)
     # The local checkpoint has all weights. No ImageNet download is needed.
-    model = resnet18(weights=None)
-    model.fc = torch.nn.Linear(model.fc.in_features, 2)
-    model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=True))
+    # Allocate weights once, backed by the checkpoint instead of making a copy.
+    with torch.device('meta'):
+        model = resnet18(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, 2)
+    state = torch.load(model_path, map_location='cpu', weights_only=True, mmap=True)
+    model.load_state_dict(state, assign=True)
+    model.requires_grad_(False)
     model.eval()
     return model
 
 
 def predict_cancer_with_gradcam(image_bytes, cancer_type):
-    model = load_model(cancer_type)
     with Image.open(BytesIO(image_bytes)) as source:
-        image = ImageOps.exif_transpose(source).convert('RGB')
-        img = np.array(image)
-        img_tensor = transform(image).unsqueeze(0)
+        # Avoid an extra full-size copy for images without an orientation change.
+        ImageOps.exif_transpose(source, in_place=True)
+        with source.convert('RGB') as image:
+            # Keep the original classifier preprocessing; only the overlay is smaller.
+            img_tensor = transform(image).unsqueeze(0)
+            image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+            img = np.array(image)
+    # Release full-resolution image buffers before loading model weights.
+    model = load_model(cancer_type)
     # One forward pass provides the prediction and its Grad-CAM activations.
     gradcam = GradCAM(model, model.layer4[-1])
     try:
