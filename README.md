@@ -29,7 +29,7 @@ backend/venv/bin/python -m pip install -r requirements.txt
 
 If you already have a working backend environment, reuse it instead of recreating it. On Windows, substitute `backend\venv\Scripts\python.exe` for `backend/venv/bin/python`.
 
-Copy `.env.example` to `.env` and set `APP_MODE=local`. Set `OPENAI_API_KEY` in that file; `OPENAI_MODEL` defaults to `gpt-4`. Image classification works without an OpenAI key. Never expose the key using a `VITE_` variable or put it in the browser.
+Create a root `.env` and set `APP_MODE=local`, `LOCAL_APP_URL=http://localhost:5173`, and `LOCAL_API_URL=http://127.0.0.1:8080`. Set `OPENAI_API_KEY` in that file; `OPENAI_MODEL` defaults to `gpt-4`. Image classification works without an OpenAI key. Never expose the key using a `VITE_` variable or put it in the browser.
 
 Start the backend from the project root:
 
@@ -95,6 +95,27 @@ Application mode is controlled by `APP_MODE` in the root `.env`, independently o
 - `APP_MODE=production`: API requests go directly to `https://lifelens-mmt7.onrender.com`, using `PRODUCTION_APP_URL`. This URL must serve the FastAPI endpoints, such as `/health` and `/predict`.
 
 Restart the backend and Vite after editing `.env`. Run `npm run build` again when changing the mode of a deployed frontend; the API URL is embedded at build time. `npm run build` creates `dist/` for frontend hosting. For Render, supply the same mode and URL values in the service environment (the private `.env` is excluded from Git). Backend CORS allows the selected application URL. Configure `OPENAI_API_KEY` and `OPENAI_MODEL` only for the backend; they are never embedded in the browser bundle.
+
+
+### One Render service for frontend and backend
+
+In production, FastAPI serves the built React app at `/` and its assets alongside the existing API endpoints. No separate frontend server is needed. A missing frontend build stops startup with a clear error.
+
+Create a Python Web Service with the repository root as its working directory (leave Render's Root Directory blank).
+
+Build command:
+
+```sh
+pip install -r requirements.txt && npm ci && npm run build
+```
+
+Start command:
+
+```sh
+python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+```
+
+Set `APP_MODE=production` and `PRODUCTION_APP_URL=https://lifelens-mmt7.onrender.com` in Render's environment settings before building. Add `OPENAI_API_KEY` for chat and optionally `OPENAI_MODEL`. Both the UI and API will be available at that Render URL. The model checkpoints must be included in the deployment. Local mode continues to use Vite on port 5173 and FastAPI on port 8080.
 
 The chat and export endpoints require request-specific analysis and history. They no longer use a global “current result.” The `/set-cancer-type` and `/reset` endpoints remain for compatibility; the model is selected with each prediction and session data is cleared in the browser.
 

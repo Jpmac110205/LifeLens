@@ -10,7 +10,7 @@ export default defineConfig(() => {
   }
   const appUrl = mode === "local" ? env.LOCAL_APP_URL : env.PRODUCTION_APP_URL;
   if (!appUrl) throw new Error(`Missing ${mode === "local" ? "LOCAL_APP_URL" : "PRODUCTION_APP_URL"} in .env.`);
-  const localUrl = new URL(env.LOCAL_APP_URL);
+  const localUrl = mode === "local" ? new URL(appUrl) : undefined;
   const apiUrl = mode === "local" ? "/api" : new URL(appUrl).origin;
 
   return {
@@ -18,8 +18,8 @@ export default defineConfig(() => {
     // Expose only the resolved public URL, never the server environment.
     define: { "import.meta.env.VITE_API_URL": JSON.stringify(apiUrl) },
     server: {
-      host: localUrl.hostname,
-      port: Number(localUrl.port),
+      host: localUrl?.hostname,
+      port: localUrl ? Number(localUrl.port) : undefined,
       strictPort: true,
       proxy: {
         "/api": {

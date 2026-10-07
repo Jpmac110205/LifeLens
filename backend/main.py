@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
+from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from PIL import Image, UnidentifiedImageError
@@ -203,6 +204,15 @@ def export_conversation(data: ExportRequest):
 def reset_session():
     # Retained for compatibility; there is no server conversation state to clear.
     return {'status': 'success', 'message': 'Clear image, results, and conversation in the browser to start a new session.'}
+
+
+# Register after API routes so requests such as /health still reach FastAPI.
+# Production uses one process and origin for both the UI and API.
+if APP_MODE == 'production':
+    frontend_dist = ROOT.parent / 'dist'
+    if not (frontend_dist / 'index.html').is_file():
+        raise RuntimeError('Frontend build missing. Run npm ci && npm run build before starting production.')
+    app.mount('/', StaticFiles(directory=frontend_dist, html=True), name='frontend')
 
 
 if __name__ == '__main__':
